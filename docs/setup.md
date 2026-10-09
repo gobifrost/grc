@@ -44,9 +44,13 @@ stays within this package.
 A provider may intentionally augment Steward with separately managed process,
 security-questionnaire, endpoint, or identity agents after installation. Those
 agents and their integration access are provider-specific, so their instance
-identifiers are not distributed in this manifest. Bind any such augmentation
-through the platform's agent management workflow after reviewing its roles,
-organization scope, and external permissions.
+identifiers are not distributed in this manifest. Create a private Solution
+overlay (for example, in a private fork), add its agent references to
+`.bifrost/agents.yaml`, and apply it through the supported Solution deployment
+or Git update lifecycle. Preserve each provider agent's authorized roles and
+organization scope, and review its external permissions before deployment. Do
+not edit Solution-managed installed agents through the platform's agent
+management API.
 
 ## Local development
 
