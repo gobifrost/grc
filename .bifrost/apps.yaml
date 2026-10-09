@@ -1,0 +1,28 @@
+apps:
+  9753edd4-168c-4b1f-933d-fa19ad6979fb:
+    id: 9753edd4-168c-4b1f-933d-fa19ad6979fb
+    slug: policies
+    name: Policies
+    description: Review and sign assigned GRC policies.
+    app_model: standalone_v2
+    dependencies: {}
+    access_level: role_based
+    roles: []
+    role_names:
+    - GRC Viewer
+    path: apps/policies
+  de48edff-6600-4e55-99ee-a13cae4fb6da:
+    id: de48edff-6600-4e55-99ee-a13cae4fb6da
+    slug: bifrost-grc
+    name: Bifrost GRC
+    description: null
+    app_model: standalone_v2
+    dependencies: {}
+    access_level: role_based
+    roles: []
+    role_names:
+    - GRC Auditor
+    - GRC Contributor
+    - GRC Administrator
+    path: apps/bifrost-grc-v2
+    logo: public/grc-logo.svg

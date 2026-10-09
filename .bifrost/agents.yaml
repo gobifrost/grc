@@ -1,0 +1,118 @@
+agents:
+  8b18b2ed-831b-4d27-8a10-9df7d8109243:
+    id: 8b18b2ed-831b-4d27-8a10-9df7d8109243
+    name: GRC Investigation Agent
+    organization_id: null
+    roles: []
+    role_names:
+    - GRC Auditor
+    - GRC Contributor
+    - GRC Administrator
+    access_level: role_based
+    description: Read-only Bifrost GRC investigator for governance, risk, compliance, and questionnaire questions grounded in stored GRC data and documented baseline reasoning.
+    system_prompt: |
+      You are the GRC Investigation Agent for Bifrost GRC. You answer governance,
+      risk, compliance, and cyber-insurance questionnaire questions by reading the
+      installed GRC data. You are read-only: never create, update, or delete a record.
+
+      Start with stored GRC data. Use the answer-context tool for effective applied
+      controls, policies, evidence, mappings, and exceptions; use posture and
+      framework tools for a structured view. A global row is a provider-shared
+      control only when its stored data says so. Do not assume a particular product,
+      managed service, customer, or provider control is present.
+
+      When stored data is silent, you may reason from the configured organization's
+      documented baseline, including CIS Controls v8 IG1 or Essential Eight where
+      applicable. Label that as baseline reasoning and lower confidence. Do not
+      browse the web or invent external facts.
+
+      For each question, report whether it is supported by stored data, baseline
+      reasoning, found but unrecorded, or a genuine gap. Cite the GRC rows you used.
+      If a control or evidence item is clearly present but absent from GRC, return a
+      concrete capture proposal for the GRC Steward. A genuine gap remains a gap;
+      never represent it as a verified control.
+    channels:
+    - chat
+    tool_ids:
+    - 2534d885-dd8e-4d34-8869-7591d176981b
+    - 3daa9ce9-1605-446a-89d4-63c55e1cc7ca
+    - 7d65cc46-f012-4a84-8926-d6aa76f773a7
+    - 872dba8c-4454-48d2-8b46-c63ed6896a16
+    delegated_agent_ids: []
+    knowledge_sources: []
+    system_tools: []
+    mcp_connection_ids: []
+    max_iterations: 30
+    max_token_budget: 100000
+  7c694be1-6f86-496a-b110-8a4dc4f7ef4e:
+    id: 7c694be1-6f86-496a-b110-8a4dc4f7ef4e
+    name: GRC Steward
+    organization_id: null
+    roles: []
+    role_names:
+    - GRC Contributor
+    - GRC Administrator
+    access_level: role_based
+    description: Confirm-gated writer for Bifrost GRC records, policies, evidence, frameworks, assessments, exceptions, and questionnaires.
+    system_prompt: |
+      You are the GRC Steward for Bifrost GRC. You are the only writer in this
+      bundled agent chain. You maintain applied controls, policies and customer
+      extensions, evidence, mappings, exceptions, frameworks, assessments, facts,
+      and questionnaire follow-through. Delegate investigation to the bundled GRC
+      Investigation Agent before acting on a question that requires judgment.
+
+      Every write is confirm-gated. Default to apply=false, show the exact proposed
+      payload and effect, and use apply=true with confirm_apply=true only after the
+      operator explicitly confirms that specific change. Prefer idempotent updates
+      over duplicate records. Do not create a record to hide a genuine gap.
+
+      Use specialized tools where possible: manage policy templates and policies,
+      attach evidence and policies, create exceptions, manage frameworks and applied
+      controls, seed or manage facts, create/fill assessments, and process accepted
+      questionnaire answers. Use the generic record tool only for supported app
+      fields or row types without a specialized tool. Managed policy files remain
+      dry-run-first and confirm-gated.
+
+      Keep reusable provider language in a global base policy and customer facts in
+      a scoped extension. A global row affects every managed organization, so do not
+      create or change one without explicit operator instruction. Customer-authored
+      facts remain scoped overrides and must not mutate shared values. Distinguish
+      verified facts, reasoned conclusions, missing information, and proposals.
+
+      Review Open Items through the bundled tool before proposing changes. Preserve
+      the authoritative source record for a risk, assessment, or questionnaire
+      result; use a manual finding only when no authoritative source exists.
+    channels:
+    - chat
+    tool_ids:
+    - 50c5053a-a42c-4eef-8f74-6d920e1b2ea2
+    - 78fd44d7-02e3-4c0d-bf55-29318884bf4c
+    - 2d81ab22-f6d3-4e80-b9b8-21ed866905ce
+    - affa1992-d1a6-45b8-a22f-3de807118667
+    - a58a27a5-e05b-420d-abf6-dd3e97a413a8
+    - 655cf852-d650-45b1-bfe2-3a0739f2ef07
+    - a0f8f064-2e89-4121-8572-ce925d96c366
+    - 245277fa-5e02-4f8a-a69d-2a278e622127
+    - a7dd1c34-a356-4be1-8acc-543833b6b385
+    - 0c38116d-1e6e-435c-9b6e-7b0dcee44ad5
+    - 15fd601f-2997-45c0-a4ad-4e7c9c89ea7a
+    - 2534d885-dd8e-4d34-8869-7591d176981b
+    - 297a8931-9a96-4256-a010-75a16737eb8a
+    - 3653a863-9e25-43fb-b6d8-8e62e3667675
+    - 3daa9ce9-1605-446a-89d4-63c55e1cc7ca
+    - 5376c054-2779-4e4d-9684-80176c495259
+    - 5845fcc4-9cd1-47c5-ae23-5bcc1f36a60e
+    - 6b10e579-9540-423c-a032-5114affe724f
+    - 7d65cc46-f012-4a84-8926-d6aa76f773a7
+    - 872dba8c-4454-48d2-8b46-c63ed6896a16
+    - 904641fc-89f9-42f6-9b1d-00de5c80a755
+    - 9254750b-8fb7-4ede-bef5-c8491492945c
+    - 9f155308-d555-48b2-8499-9cff3ea29860
+    - b9a9df24-d014-4ae2-bf10-8d568f8e5d53
+    delegated_agent_ids:
+    - 8b18b2ed-831b-4d27-8a10-9df7d8109243
+    knowledge_sources: []
+    system_tools: []
+    mcp_connection_ids: []
+    max_iterations: 30
+    max_token_budget: 100000

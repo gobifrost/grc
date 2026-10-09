@@ -1,0 +1,4338 @@
+tables:
+  38250b4d-6231-4702-99a6-09e7d18b8e29:
+    id: 38250b4d-6231-4702-99a6-09e7d18b8e29
+    name: grc-assessment-controls
+    description: Per-control assessment results within an assessment
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+        description: Provider organization that owns this assessment result.
+      - name: assessment_id
+        type: string
+        required: true
+      - name: control_id
+        type: string
+        required: true
+      - enum:
+        - compliant
+        - partially_compliant
+        - non_compliant
+        - not_assessed
+        - not_applicable
+        name: status
+        type: string
+        default: not_assessed
+      - name: implementation_percentage
+        type: number
+        default: 0
+      - name: notes
+        type: string
+      - name: assessed_by
+        type: string
+      - name: assessed_at
+        type: datetime
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      actions:
+      - read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - name: grc_tenant_create_delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      actions:
+      - create
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - name: grc_tenant_delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      actions:
+      - delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - name: grc_tenant_update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      actions:
+      - update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  27a48006-9937-40c7-a06b-aefc7b5a8f6a:
+    id: 27a48006-9937-40c7-a06b-aefc7b5a8f6a
+    name: grc-policy-campaigns
+    description: Generic policy campaign records for integration-driven acknowledgement or review journeys.
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+        required: true
+        description: Customer organization that owns the campaign.
+      - name: idempotency_key
+        type: string
+        required: true
+        description: Stable caller-supplied key used to create or return the same campaign.
+      - name: request_fingerprint
+        type: string
+        description: Canonical fingerprint used to detect changed idempotent requests.
+      - name: title
+        type: string
+        required: true
+      - name: description
+        type: string
+      - name: status
+        type: string
+        enum: [draft, active, closed, archived]
+        default: active
+      - name: policy_ids_json
+        type: string
+        required: true
+        description: JSON array of explicit policy ids included in this campaign.
+      - name: policy_versions_json
+        type: string
+        description: JSON object of policy id to policy version captured when the campaign was created.
+      - name: audience_count
+        type: integer
+        default: 0
+      - name: audience_json
+        type: string
+        description: JSON array of deduplicated campaign audience actors.
+      - name: due_date
+        type: date
+      - name: link_url
+        type: string
+      - name: created_by_actor_id
+        type: string
+      - name: created_by_actor_email
+        type: string
+      - name: created_by_actor_display_name
+        type: string
+      - name: metadata_json
+        type: string
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer policy campaign records.
+      actions: [read, create, update, delete]
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read campaigns for their visible organization context.
+      actions: [read]
+      when:
+        and:
+        - or:
+          - args: [GRC Auditor]
+            call: has_role
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  6be5d28d-5e76-4564-87b9-b653f8ad6563:
+    id: 6be5d28d-5e76-4564-87b9-b653f8ad6563
+    name: grc-policy-campaign-assignments
+    description: Generic per-actor assignments for policy campaigns.
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+        required: true
+        description: Customer organization that owns the assignment.
+      - name: campaign_id
+        type: string
+        required: true
+      - name: actor_id
+        type: string
+        required: true
+      - name: actor_email
+        type: string
+      - name: actor_display_name
+        type: string
+      - name: status
+        type: string
+        enum: [assigned, accepted, waived, removed]
+        default: assigned
+      - name: assigned_at
+        type: datetime
+      - name: due_date
+        type: date
+      - name: metadata_json
+        type: string
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer policy campaign assignments.
+      actions: [read, create, update, delete]
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read campaign assignments for their visible organization context.
+      actions: [read]
+      when:
+        and:
+        - or:
+          - args: [GRC Auditor]
+            call: has_role
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  e68e61dc-dcae-4c80-93e3-88f7ff4fac54:
+    id: e68e61dc-dcae-4c80-93e3-88f7ff4fac54
+    name: grc-policy-acceptances
+    description: Append-only policy campaign acceptance events.
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+        required: true
+        description: Customer organization that owns the acceptance event.
+      - name: campaign_id
+        type: string
+        required: true
+      - name: assignment_id
+        type: string
+      - name: actor_id
+        type: string
+        required: true
+      - name: actor_email
+        type: string
+      - name: actor_display_name
+        type: string
+      - name: accepted_policy_ids_json
+        type: string
+      - name: accepted_policy_versions_json
+        type: string
+      - name: status
+        type: string
+        enum: [accepted, revoked, superseded]
+        default: accepted
+      - name: accepted_at
+        type: datetime
+        required: true
+      - name: revoked_at
+        type: datetime
+      - name: superseded_by
+        type: string
+      - name: source_system
+        type: string
+      - name: source_id
+        type: string
+      - name: metadata_json
+        type: string
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer policy acceptance events.
+      actions: [read, create, update, delete]
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read acceptance events for their visible organization context.
+      actions: [read]
+      when:
+        and:
+        - or:
+          - args: [GRC Auditor]
+            call: has_role
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - name: grc_recipient_own_acceptance_read
+      description: Policy recipients may read only their own acceptance events in their customer organization.
+      actions: [read]
+      when:
+        and:
+        - args: [GRC Viewer]
+          call: has_role
+        - eq:
+          - row: organization_id
+          - user: organization_id
+        - eq:
+          - row: actor_id
+          - user: user_id
+  eecb60eb-8b85-475f-b24b-2bf6654571cb:
+    id: eecb60eb-8b85-475f-b24b-2bf6654571cb
+    name: grc-assessments
+    description: GRC compliance assessments for an organization
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+        description: Bifrost organization this GRC row belongs to. NULL = global.
+      - name: framework_id
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+        description: Assessment name
+      - name: applied_organizations
+        type: array
+        description: Org IDs this assessment applies to. null = all orgs (perpetual);
+          [] = none yet; [a,b,c] = specific
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs explicitly outside this assessment's applicability.
+      - enum:
+        - draft
+        - in_progress
+        - completed
+        - reviewed
+        name: status
+        type: string
+        default: draft
+      - name: progress_percentage
+        type: number
+        default: 0
+      - name: started_at
+        type: datetime
+      - name: completed_at
+        type: datetime
+      - name: assigned_to
+        type: string
+        description: Assignee name or ID
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      actions:
+      - read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - name: grc_tenant_create_delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      actions:
+      - create
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - name: grc_tenant_delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      actions:
+      - delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - name: grc_tenant_update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      actions:
+      - update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  96c5aa2b-3ce2-498c-8fe7-57c2e23e3210:
+    id: 96c5aa2b-3ce2-498c-8fe7-57c2e23e3210
+    name: grc-controls
+    description: Individual controls within a GRC framework
+    schema:
+      columns:
+      - name: domain_id
+        type: string
+        description: Parent domain (null for unassigned)
+      - name: framework_id
+        type: string
+        required: true
+        description: Parent framework
+      - name: control_id
+        type: string
+        required: true
+        description: Human-readable control ID (e.g., AC-1)
+      - name: title
+        type: string
+        required: true
+        description: Control title
+      - name: description
+        type: string
+        description: Full description
+      - name: guidance
+        type: string
+        description: Implementation guidance
+      - name: sort_order
+        type: integer
+        default: 0
+      - name: is_active
+        type: boolean
+        default: true
+      - enum:
+        - global
+        - organization
+        name: scope
+        type: string
+        default: global
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      actions:
+      - read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - name: grc_tenant_create_delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      actions:
+      - create
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - name: grc_tenant_delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      actions:
+      - delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - name: grc_tenant_update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      actions:
+      - update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  773391f8-203b-4193-9834-0717562fd4a3:
+    id: 773391f8-203b-4193-9834-0717562fd4a3
+    name: grc-domains
+    description: Domains/categories within a GRC framework
+    schema:
+      columns:
+      - name: framework_id
+        type: string
+        required: true
+        description: Parent framework
+      - name: name
+        type: string
+        required: true
+        description: Domain name
+      - name: description
+        type: string
+        description: Description
+      - name: sort_order
+        type: integer
+        default: 0
+        description: Display order
+      - name: is_active
+        type: boolean
+        default: true
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      actions:
+      - read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - name: grc_tenant_create_delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      actions:
+      - create
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - name: grc_tenant_delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      actions:
+      - delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - name: grc_tenant_update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      actions:
+      - update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  28db201c-6694-4c6d-86e2-08f67ef79da8:
+    id: 28db201c-6694-4c6d-86e2-08f67ef79da8
+    name: grc-evidence
+    description: Evidence artifacts for compliance assessments
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+        description: Provider organization that owns this reusable evidence.
+      - name: applied_organizations
+        type: array
+        description: Customer org IDs this evidence applies to. null means all current and future customers.
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs excluded from applicability.
+      - name: assessment_id
+        type: string
+        description: Optional link to assessment
+      - name: control_id
+        type: string
+        description: Optional link to control
+      - name: name
+        type: string
+        required: true
+        description: Evidence name
+      - enum:
+        - document
+        - url
+        - screenshot
+        - note
+        name: type
+        type: string
+        required: true
+      - name: url
+        type: string
+        description: URL for link-type evidence
+      - name: file_path
+        type: string
+        description: Bifrost storage path for uploaded files
+      - name: notes
+        type: string
+      - name: notes_markdown
+        type: string
+        description: Markdown-formatted evidence notes.
+      - name: urls_json
+        type: string
+        description: JSON array of supporting URLs.
+      - name: attachments_json
+        type: string
+        description: JSON array of managed file attachments.
+      - name: provenance_json
+        type: string
+        description: JSON object describing source system and collection provenance.
+      - name: tags
+        type: array
+        description: Search and classification tags.
+      - name: review_status
+        type: string
+        enum: [draft, needs_review, approved, rejected]
+        default: draft
+      - name: last_reviewed_at
+        type: datetime
+      - name: review_due
+        type: date
+        description: Date this evidence should be reviewed or recollected.
+      - name: review_frequency_days
+        type: integer
+        default: 365
+      - name: uploaded_by
+        type: string
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      actions:
+      - read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+  53466c0c-2945-484d-96bd-1a2ab0e235ad:
+    id: 53466c0c-2945-484d-96bd-1a2ab0e235ad
+    name: grc-exceptions
+    description: Exceptions/waivers for specific controls
+    schema:
+      columns:
+      - name: control_id
+        type: string
+        required: false
+        description: Optional legacy/default reference control. Prefer grc-exception-links
+          for relationships.
+      - name: organization_id
+        type: string
+        required: true
+        description: Provider organization that owns this exception.
+      - name: applied_organizations
+        type: array
+        description: Customer org IDs this exception applies to. null means all current and future customers.
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs excluded from applicability.
+      - name: name
+        type: string
+        description: Short human-readable summary of the exception.
+      - name: reason
+        type: string
+        required: true
+        description: Justification
+      - enum:
+        - pending
+        - approved
+        - denied
+        - expired
+        name: status
+        type: string
+        default: pending
+      - name: approved_by
+        type: string
+      - name: expires_at
+        type: date
+      - name: compensating_controls
+        type: string
+        description: Description of compensating controls
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      actions:
+      - read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+  01e5ee34-1623-481e-85f0-65395fb51d64:
+    id: 01e5ee34-1623-481e-85f0-65395fb51d64
+    name: grc-frameworks
+    description: GRC compliance frameworks (e.g., NIST, CIS, SOC2)
+    schema:
+      columns:
+      - name: name
+        type: string
+        required: true
+        description: Framework name
+      - name: description
+        type: string
+        description: Description
+      - name: version
+        type: string
+        description: Version identifier
+      - enum:
+        - global
+        - organization
+        name: scope
+        type: string
+        default: global
+        description: Whether framework is global or org-specific
+      - name: organization_id
+        type: string
+        description: Owning org (null for global)
+      - name: is_active
+        type: boolean
+        default: true
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      actions:
+      - read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - name: grc_tenant_create_delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      actions:
+      - create
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - name: grc_tenant_delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      actions:
+      - delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - name: grc_tenant_update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      actions:
+      - update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  ab4ed21b-6c49-4b85-9f28-8920eb12ce96:
+    id: ab4ed21b-6c49-4b85-9f28-8920eb12ce96
+    name: grc-policies
+    description: Organization security and compliance policies
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+        description: Provider organization that owns this policy.
+      - name: applied_organizations
+        type: array
+        description: Customer org IDs this policy applies to. null means all current and future customers.
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs excluded from applicability.
+      - name: name
+        type: string
+        required: true
+      - name: description
+        type: string
+      - name: content
+        type: string
+        description: Full policy text
+      - name: version
+        type: string
+        default: '1.0'
+      - enum:
+        - draft
+        - active
+        - archived
+        name: status
+        type: string
+        default: draft
+      - name: approved_by
+        type: string
+      - name: approved_at
+        type: datetime
+      - name: review_date
+        type: date
+      - name: last_reviewed_at
+        type: datetime
+      - name: review_frequency_days
+        type: integer
+        default: 365
+        description: Normal interval used when a completed review advances the next review date.
+      - name: policy_type
+        type: string
+        default: policy
+        enum:
+        - policy
+        - ai_acceptable_use
+        - incident_response_plan
+        - system_security_plan
+        - procedure
+        description: The governed document type.
+      - name: policy_role
+        type: string
+        default: standalone
+        enum:
+        - standalone
+        - base
+        - extension
+        description: Whether this is standalone, a reusable global base, or a customer extension.
+      - name: base_policy_id
+        type: string
+        description: Global base policy extended by this customer-scoped policy.
+      - name: extension_mode
+        type: string
+        default: supplement
+        enum:
+        - supplement
+        - deviation
+        description: Extensions supplement the base and may document explicit deviations without mutating it.
+      - name: reviewed_base_version
+        type: string
+        description: Base version against which this extension was last reviewed.
+      - name: owner
+        type: string
+        description: Person accountable for maintaining and reviewing this document.
+      - name: source_system
+        type: string
+      - name: source_id
+        type: string
+      - name: source_url
+        type: string
+      - name: attachments_json
+        type: string
+        description: JSON array of managed policy files and pasted images.
+      - name: fact_snapshot_json
+        type: string
+        description: JSON snapshot of resolved fact keys, values, statuses, and revisions captured at approval.
+      - name: fact_snapshot_at
+        type: datetime
+        description: When the policy fact snapshot was captured.
+      - name: template_id
+        type: string
+        description: Template used to create this policy draft.
+      - name: template_version
+        type: string
+        description: Template version copied when this policy was created.
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      actions:
+      - read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+  977bc06b-b00a-4e99-8dad-481c4244bf38:
+    id: 977bc06b-b00a-4e99-8dad-481c4244bf38
+    name: grc-policy-templates
+    description: Reusable recipes for creating governed policies and customer addenda
+    schema:
+      columns:
+      - {name: organization_id, type: string, description: Owning organization; null is provider-global.}
+      - {name: applied_organizations, type: array, description: Organizations allowed to use this template; null means all.}
+      - {name: excluded_organizations, type: array}
+      - {name: name, type: string, required: true}
+      - {name: description, type: string}
+      - {name: content, type: string, description: Markdown copied into a new policy draft.}
+      - {name: content_updated_at, type: string, description: Date the template content last changed.}
+      - {name: field_schema, type: array, description: Caller-supplied fields with key required and description.}
+      - {name: version, type: string, default: '1.0'}
+      - name: status
+        type: string
+        default: draft
+        enum: [draft, active, archived]
+      - name: policy_type
+        type: string
+        default: policy
+        enum: [policy, ai_acceptable_use, incident_response_plan, system_security_plan, procedure]
+      - name: default_policy_role
+        type: string
+        default: standalone
+        enum: [standalone, base, extension]
+      - name: default_extension_mode
+        type: string
+        default: supplement
+        enum: [supplement, deviation]
+      - {name: default_name, type: string, description: Suggested name for policies created from this template.}
+      - {name: base_policy_type, type: string, description: Required global base type for extension templates.}
+      - {name: base_template_id, type: string, description: Deterministic parent template ID for an extension template.}
+      - {name: source_system, type: string}
+      - {name: source_id, type: string}
+      - {name: source_url, type: string}
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all policy templates.
+      actions: [read, create, update, delete]
+      when: {user: is_platform_admin}
+    - name: grc_template_read
+      description: GRC roles read templates visible to their organization.
+      actions: [read]
+      when:
+        and:
+        - or:
+          - {args: [GRC Auditor], call: has_role}
+          - {args: [GRC Contributor], call: has_role}
+          - {args: [GRC Administrator], call: has_role}
+        - or:
+          - {user: is_provider_org}
+          - eq: [{row: organization_id}, {user: organization_id}]
+          - is_null: {row: organization_id}
+    - name: grc_template_create_delete
+      description: Contributors and administrators create templates in permitted scopes.
+      actions: [create]
+      when:
+        and:
+        - or:
+          - {args: [GRC Contributor], call: has_role}
+          - {args: [GRC Administrator], call: has_role}
+        - or:
+          - {user: is_provider_org}
+          - eq: [{row: organization_id}, {user: organization_id}]
+    - name: grc_template_update
+      description: Contributors and administrators update templates in their own organization; provider roles may update shared templates.
+      actions: [update]
+      when:
+        and:
+        - or:
+          - {args: [GRC Contributor], call: has_role}
+          - {args: [GRC Administrator], call: has_role}
+        - or:
+          - {user: is_provider_org}
+          - {eq: [{row: organization_id}, {user: organization_id}]}
+    - name: grc_template_delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      actions: [delete]
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+  a3fa106a-97e7-4b14-832d-d38fa4bf50be:
+    id: a3fa106a-97e7-4b14-832d-d38fa4bf50be
+    name: grc-policy-controls
+    description: Mapping between policies and controls
+    schema:
+      columns:
+      - name: policy_id
+        type: string
+        required: true
+      - name: control_id
+        type: string
+        required: true
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer legacy GRC relationships.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_provider_links
+      description: Legacy relationship rows without tenant scope remain restricted
+        to Platform Org GRC roles.
+      actions:
+      - read
+      when:
+        and:
+        - user: is_provider_org
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+    - name: grc_provider_links_write
+      description: Platform Org contributors and administrators maintain legacy relationships.
+      actions:
+      - create
+      - update
+      - delete
+      when:
+        and:
+        - user: is_provider_org
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+  001484c6-79a0-49e6-b753-f4db076b0468:
+    id: 001484c6-79a0-49e6-b753-f4db076b0468
+    name: grc-risk-controls
+    description: Mapping between risks and mitigating controls
+    schema:
+      columns:
+      - name: risk_id
+        type: string
+        required: true
+      - name: control_id
+        type: string
+        required: true
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer legacy GRC relationships.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_provider_links
+      description: Legacy relationship rows without tenant scope remain restricted
+        to Platform Org GRC roles.
+      actions:
+      - read
+      when:
+        and:
+        - user: is_provider_org
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+    - name: grc_provider_links_write
+      description: Platform Org contributors and administrators maintain legacy relationships.
+      actions:
+      - create
+      - update
+      - delete
+      when:
+        and:
+        - user: is_provider_org
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+  394a3b2f-0968-40c9-bfb0-38bb0f6cfeda:
+    id: 394a3b2f-0968-40c9-bfb0-38bb0f6cfeda
+    name: grc-risks
+    description: Organization risk register entries
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+        required: true
+        description: Provider organization that owns this risk.
+      - name: applied_organizations
+        type: array
+        description: Customer org IDs this risk applies to. null means all current and future customers.
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs excluded from applicability.
+      - name: name
+        type: string
+        required: true
+      - name: description
+        type: string
+      - name: category
+        type: string
+        description: Risk category
+      - enum:
+        - very_high
+        - high
+        - medium
+        - low
+        name: likelihood
+        type: string
+      - enum:
+        - very_high
+        - high
+        - medium
+        - low
+        name: impact
+        type: string
+      - enum:
+        - very_high
+        - high
+        - medium
+        - low
+        name: risk_level
+        type: string
+      - enum:
+        - open
+        - mitigated
+        - accepted
+        - closed
+        name: status
+        type: string
+        default: open
+      - name: owner
+        type: string
+        description: Risk owner
+      - name: mitigation_plan
+        type: string
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      actions:
+      - read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - name: grc_tenant_create_delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      actions:
+      - create
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - name: grc_tenant_delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      actions:
+      - delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - name: grc_tenant_update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      actions:
+      - update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  2c7a5b43-f6dd-4221-a7c6-b5afc64ff345:
+    id: 2c7a5b43-f6dd-4221-a7c6-b5afc64ff345
+    name: grc-service-plan-controls
+    description: Global control membership for each service-plan baseline.
+    schema:
+      columns:
+      - name: service_plan_id
+        type: string
+      - name: control_id
+        type: string
+      - name: required
+        type: bool
+      - name: implementation_notes
+        type: string
+      - name: sort_order
+        type: int
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_reference_read
+      description: Any GRC role may read the global standards catalog.
+      actions:
+      - read
+      when:
+        or:
+        - args:
+          - GRC Auditor
+          call: has_role
+        - args:
+          - GRC Contributor
+          call: has_role
+        - args:
+          - GRC Administrator
+          call: has_role
+    - name: grc_reference_write
+      description: Platform Org contributors and administrators maintain global standards.
+      actions:
+      - create
+      - update
+      - delete
+      when:
+        and:
+        - user: is_provider_org
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+  1868ef52-5af1-4acf-a131-dc4661b1a14c:
+    id: 1868ef52-5af1-4acf-a131-dc4661b1a14c
+    name: grc-service-plan-organizations
+    description: Tenant assignments of clients to global service-plan baselines.
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+      - name: service_plan_id
+        type: string
+      - name: status
+        type: string
+      - name: effective_at
+        type: datetime
+      - name: ended_at
+        type: datetime
+      - name: notes
+        type: string
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      actions:
+      - read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - name: grc_tenant_create_delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      actions:
+      - create
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - name: grc_tenant_delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      actions:
+      - delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - name: grc_tenant_update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      actions:
+      - update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  c11aff84-86d6-4a6f-be99-ee302777d981:
+    id: c11aff84-86d6-4a6f-be99-ee302777d981
+    name: grc-service-plans
+    description: Versioned service-plan baselines that define included standards and
+      controls.
+    schema:
+      columns:
+      - name: name
+        type: string
+      - name: description
+        type: string
+      - name: version
+        type: string
+      - name: status
+        type: string
+      - name: effective_at
+        type: datetime
+      - name: review_frequency_months
+        type: int
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions:
+      - read
+      - create
+      - update
+      - delete
+      when:
+        user: is_platform_admin
+    - name: grc_reference_read
+      description: Any GRC role may read the global standards catalog.
+      actions:
+      - read
+      when:
+        or:
+        - args:
+          - GRC Auditor
+          call: has_role
+        - args:
+          - GRC Contributor
+          call: has_role
+        - args:
+          - GRC Administrator
+          call: has_role
+    - name: grc_reference_write
+      description: Platform Org contributors and administrators maintain global standards.
+      actions:
+      - create
+      - update
+      - delete
+      when:
+        and:
+        - user: is_provider_org
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+  ac56eef2-46ad-486b-8101-f87abe7071ba:
+    id: ac56eef2-46ad-486b-8101-f87abe7071ba
+    name: grc-applied-control-history
+    description: Audit history for Bifrost GRC applied controls
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+      - name: applied_control_id
+        required: true
+        type: string
+      - description: created, updated, mapped, unmapped, evidence_linked, policy_linked,
+          exception_linked, imported
+        name: event_type
+        required: true
+        type: string
+      - name: actor_id
+        required: false
+        type: string
+      - name: actor_label
+        required: false
+        type: string
+      - name: event_at
+        required: true
+        type: string
+      - name: summary
+        required: false
+        type: string
+      - name: before_json
+        required: false
+        type: string
+      - name: after_json
+        required: false
+        type: string
+      - name: source_system
+        required: false
+        type: string
+      - name: source_id
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+  19b2ab3c-dafb-4772-9945-d05662360db9:
+    id: 19b2ab3c-dafb-4772-9945-d05662360db9
+    name: grc-applied-controls
+    description: Provider-owned controls with one, some, or all-customer applicability.
+    schema:
+      columns:
+      - description: Provider organization that owns this applied control.
+        name: organization_id
+        type: string
+      - name: applied_organizations
+        type: array
+        description: Customer org IDs this provider control applies to. null means all current and future customers.
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs excluded from applicability.
+      - description: Human-readable customer control name
+        name: name
+        required: true
+        type: string
+      - description: What the customer actually does
+        name: description
+        type: string
+      - description: Policy, process, technical, administrative, physical, vendor,
+          or other
+        name: control_type
+        type: string
+      - description: active, planned, partial, retired, unknown
+        name: status
+        type: string
+      - description: informal, documented, implemented, measured, optimized, unknown
+        name: maturity
+        type: string
+      - description: User, role, team, or external owner
+        name: owner
+        type: string
+      - description: Vendor that supplies this control (e.g. 'Huntress', 'ConnectWise').
+          Used to attribute MSP-stack controls.
+        name: provided_by
+        type: string
+      - description: draft, needs_review, approved, rejected
+        name: review_status
+        type: string
+      - description: ISO timestamp for most recent review
+        name: last_reviewed_at
+        type: string
+      - description: Origin system, for example ciso_assistant or questionnaire
+        name: source_system
+        type: string
+      - description: Source system object id for idempotent import
+        name: source_id
+        type: string
+      - description: Direct URL to source object when available
+        name: source_url
+        type: string
+      - description: JSON array of tags
+        name: tags_json
+        type: string
+      - description: JSON object for source-specific fields
+        name: metadata_json
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      name: grc_tenant_delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  d4a5a9e2-f37c-4b5b-ad4f-b0d4091b18f8:
+    id: d4a5a9e2-f37c-4b5b-ad4f-b0d4091b18f8
+    name: grc-assessment-control-overrides
+    description: Per-org override of an assessment-control's status. Only exists when
+      an org diverges from the assessment-level default.
+    schema:
+      columns:
+      - name: assessment_id
+        required: true
+        type: string
+      - name: control_id
+        required: true
+        type: string
+      - name: organization_id
+        required: true
+        type: string
+        description: Provider organization that owns this override row.
+      - name: customer_organization_id
+        required: true
+        type: string
+        description: Customer whose effective control result diverges from the provider default.
+      - enum:
+        - compliant
+        - partially_compliant
+        - non_compliant
+        - not_assessed
+        - not_applicable
+        name: status
+        required: true
+        type: string
+      - default: 0
+        name: implementation_percentage
+        type: number
+      - name: notes
+        type: string
+      - name: assessed_by
+        type: string
+      - name: assessed_at
+        type: datetime
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      - delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  641e4df9-1a3f-43ed-891d-113f97d788c9:
+    id: 641e4df9-1a3f-43ed-891d-113f97d788c9
+    name: grc-ciso-org-mappings
+    description: Manual and suggested CISO Assistant object to Bifrost organization
+      mappings
+    schema:
+      columns:
+      - description: Target Bifrost organization id
+        name: organization_id
+        required: true
+        type: string
+      - description: perimeter, folder, entity, domain, compliance_assessment, other
+        name: ciso_object_type
+        required: true
+        type: string
+      - name: ciso_object_id
+        required: true
+        type: string
+      - name: ciso_object_name
+        required: false
+        type: string
+      - name: confidence
+        required: false
+        type: number
+      - description: suggested, confirmed, rejected
+        name: status
+        required: true
+        type: string
+      - name: rationale
+        required: false
+        type: string
+      - name: confirmed_by
+        required: false
+        type: string
+      - name: confirmed_at
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer internal GRC
+        metadata.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Only Platform Org GRC Administrators manage internal migration
+        and delegated-access metadata.
+      name: grc_internal_admin
+      when:
+        and:
+        - user: is_provider_org
+        - args:
+          - GRC Administrator
+          call: has_role
+  ac1f0199-6907-4564-b21a-4670dffb674e:
+    id: ac1f0199-6907-4564-b21a-4670dffb674e
+    name: grc-fact-definitions
+    description: Reusable typed facts referenced by policies, assessments, and other GRC records.
+    schema:
+      columns:
+      - {name: organization_id, type: string, description: "Null for the provider template library; an org ID for a customer-only definition."}
+      - {name: key, type: string, required: true, description: "Stable dotted key used in inline fact references."}
+      - {name: title, type: string, required: true}
+      - {name: description, type: string}
+      - {name: category, type: string}
+      - {name: fact_type, type: string, default: short_text, enum: [contact, short_text, long_text, boolean, date, duration, number, select, list, system_reference, vendor_reference, evidence_reference]}
+      - {name: expected_from, type: string, default: shared, enum: [msp, customer, shared]}
+      - {name: sensitivity, type: string, default: normal, enum: [normal, restricted]}
+      - {name: review_frequency_days, type: number, default: 365}
+      - {name: options_json, type: string}
+      - {name: default_value_json, type: string}
+      - {name: is_active, type: boolean, default: true}
+      - {name: source_system, type: string}
+      - {name: source_id, type: string}
+      - {name: source_url, type: string}
+    policies:
+    - {name: platform_admin_bypass, actions: [read, create, update, delete], when: {user: is_platform_admin}}
+    - name: grc_fact_definition_read
+      actions: [read]
+      when:
+        and:
+        - or:
+          - {call: has_role, args: [GRC Auditor]}
+          - {call: has_role, args: [GRC Contributor]}
+          - {call: has_role, args: [GRC Administrator]}
+        - or:
+          - {user: is_provider_org}
+          - {eq: [{row: organization_id}, {user: organization_id}]}
+          - {is_null: {row: organization_id}}
+    - name: grc_fact_definition_write
+      actions: [create, update, delete]
+      when:
+        and:
+        - {user: is_provider_org}
+        - or:
+          - {call: has_role, args: [GRC Contributor]}
+          - {call: has_role, args: [GRC Administrator]}
+  9da592a0-bcc3-4bb9-828a-44f3b5de510d:
+    id: 9da592a0-bcc3-4bb9-828a-44f3b5de510d
+    name: grc-facts
+    description: All, some, or one-organization values, provenance, verification, and review state for reusable GRC facts.
+    schema:
+      columns:
+      - {name: organization_id, type: string, description: "Null for an All fact; customer ID for a tenant-safe One or materialized Some row."}
+      - {name: applied_organizations, type: array, description: "Physical row applicability: null for All or the tenant ID represented by this scoped row."}
+      - {name: excluded_organizations, type: array, description: "Reserved applicability exclusions; scoped fact groups currently materialize explicit inclusions."}
+      - {name: scope_id, type: string, description: "Stable logical scope ID shared by every materialized row in a Some scope."}
+      - {name: scope_kind, type: string, default: one, enum: [one, some, all]}
+      - {name: scope_size, type: number, description: "Logical audience size used for deterministic narrowest-scope precedence; null for All."}
+      - {name: fact_definition_id, type: string, required: true}
+      - {name: fact_key, type: string, required: true}
+      - {name: value_json, type: string}
+      - {name: status, type: string, default: unanswered, enum: [unanswered, proposed, needs_verification, verified, stale, not_applicable, accepted_unknown]}
+      - {name: source_system, type: string}
+      - {name: source_id, type: string}
+      - {name: source_url, type: string}
+      - {name: confidence, type: number}
+      - {name: provided_by, type: string}
+      - {name: verified_by, type: string}
+      - {name: verified_at, type: datetime}
+      - {name: review_due, type: date}
+      - {name: notes, type: string}
+      - {name: revision, type: number, default: 1}
+    policies:
+    - {name: platform_admin_bypass, actions: [read, create, update, delete], when: {user: is_platform_admin}}
+    - name: grc_fact_read
+      actions: [read]
+      when:
+        and:
+        - or:
+          - {call: has_role, args: [GRC Auditor]}
+          - {call: has_role, args: [GRC Contributor]}
+          - {call: has_role, args: [GRC Administrator]}
+        - or:
+          - {user: is_provider_org}
+          - {eq: [{row: organization_id}, {user: organization_id}]}
+          - {is_null: {row: organization_id}}
+    - name: grc_fact_create
+      actions: [create]
+      when:
+        and:
+        - or:
+          - {call: has_role, args: [GRC Contributor]}
+          - {call: has_role, args: [GRC Administrator]}
+        - or:
+          - {user: is_provider_org}
+          - {eq: [{row: organization_id}, {user: organization_id}]}
+    - name: grc_fact_update_delete
+      actions: [update]
+      when:
+        and:
+        - or:
+          - {call: has_role, args: [GRC Contributor]}
+          - {call: has_role, args: [GRC Administrator]}
+        - or:
+          - {user: is_provider_org}
+          - and:
+            - {eq: [{row: organization_id}, {user: organization_id}]}
+            - or:
+              - {eq: [{row: scope_kind}, one]}
+              - {is_null: {row: scope_kind}}
+    - name: grc_fact_delete
+      actions: [delete]
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+  78cccc2a-b689-4f97-8919-67d99ded19f3:
+    id: 78cccc2a-b689-4f97-8919-67d99ded19f3
+    name: grc-fact-requirements
+    description: Declares where a reusable fact is required and who must supply it.
+    schema:
+      columns:
+      - {name: organization_id, type: string, description: "Null for a global template requirement; an org ID for a customer-only requirement."}
+      - {name: fact_definition_id, type: string, required: true}
+      - {name: fact_key, type: string, required: true}
+      - {name: target_type, type: string, required: true, enum: [policy, policy_template, assessment, assessment_control, control, risk, exception, organization]}
+      - {name: target_id, type: string}
+      - {name: target_source_id, type: string, description: "Stable source identifier used when a template policy has not yet been created."}
+      - {name: context, type: string}
+      - {name: required, type: boolean, default: true}
+      - {name: priority, type: string, default: medium, enum: [low, medium, high, critical]}
+      - {name: responsible_party, type: string, default: shared, enum: [msp, customer, shared]}
+      - {name: assigned_to, type: string}
+      - {name: due_date, type: date}
+      - {name: status, type: string, default: active, enum: [active, waived]}
+      - {name: waiver_reason, type: string}
+      - {name: source_system, type: string}
+      - {name: source_id, type: string}
+    policies:
+    - {name: platform_admin_bypass, actions: [read, create, update, delete], when: {user: is_platform_admin}}
+    - name: grc_fact_requirement_read
+      actions: [read]
+      when:
+        and:
+        - or:
+          - {call: has_role, args: [GRC Auditor]}
+          - {call: has_role, args: [GRC Contributor]}
+          - {call: has_role, args: [GRC Administrator]}
+        - or:
+          - {user: is_provider_org}
+          - {eq: [{row: organization_id}, {user: organization_id}]}
+          - {is_null: {row: organization_id}}
+    - name: grc_fact_requirement_write
+      actions: [create, update, delete]
+      when:
+        and:
+        - {user: is_provider_org}
+        - or:
+          - {call: has_role, args: [GRC Contributor]}
+          - {call: has_role, args: [GRC Administrator]}
+  81226946-da2f-4229-91a6-dfb779b21504:
+    id: 81226946-da2f-4229-91a6-dfb779b21504
+    name: grc-policy-fact-snapshots
+    description: Customer-specific approval snapshots for effective policies, including global bases.
+    schema:
+      columns:
+      - {name: organization_id, type: string, required: true}
+      - {name: policy_id, type: string, required: true}
+      - {name: effective_policy_id, type: string}
+      - {name: policy_version, type: string}
+      - {name: base_version, type: string}
+      - {name: snapshot_json, type: string, required: true}
+      - {name: captured_at, type: datetime, required: true}
+      - {name: captured_by, type: string}
+    policies:
+    - {name: platform_admin_bypass, actions: [read, create, update, delete], when: {user: is_platform_admin}}
+    - name: grc_policy_fact_snapshot_read
+      actions: [read]
+      when:
+        and:
+        - or:
+          - {call: has_role, args: [GRC Auditor]}
+          - {call: has_role, args: [GRC Contributor]}
+          - {call: has_role, args: [GRC Administrator]}
+        - or:
+          - {user: is_provider_org}
+          - {eq: [{row: organization_id}, {user: organization_id}]}
+    - name: grc_policy_fact_snapshot_write
+      actions: [create, update]
+      when:
+        and:
+        - or:
+          - {call: has_role, args: [GRC Contributor]}
+          - {call: has_role, args: [GRC Administrator]}
+        - or:
+          - {user: is_provider_org}
+          - {eq: [{row: organization_id}, {user: organization_id}]}
+    - name: grc_policy_fact_snapshot_delete
+      actions: [delete]
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+  b9833872-e873-4c70-89f2-c468db085b28:
+    id: b9833872-e873-4c70-89f2-c468db085b28
+    name: grc-control-crosswalks
+    description: Crosswalk mappings between GRC framework controls
+    schema:
+      columns:
+      - name: source_control_id
+        required: true
+        type: string
+      - name: target_control_id
+        required: true
+        type: string
+      - description: Null/global when crosswalk is reusable across organizations
+        name: organization_id
+        required: false
+        type: string
+      - description: equivalent, overlaps, narrower, broader, supports
+        name: relationship
+        required: true
+        type: string
+      - name: confidence
+        required: false
+        type: number
+      - name: rationale
+        required: false
+        type: string
+      - name: source_system
+        required: false
+        type: string
+      - name: source_id
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      name: grc_tenant_delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  6c8c8dae-487c-42a0-acf7-4774c4d8b34b:
+    id: 6c8c8dae-487c-42a0-acf7-4774c4d8b34b
+    name: grc-control-mappings
+    description: Mappings from customer applied controls to framework controls
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+        description: Provider organization that owns this mapping.
+      - name: applied_organizations
+        type: array
+        description: Applicability inherited from the mapped applied control.
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs excluded from applicability.
+      - name: applied_control_id
+        required: true
+        type: string
+      - description: grc-controls row id
+        name: control_id
+        required: true
+        type: string
+      - description: satisfies, partially_satisfies, supports, conflicts, informational
+        name: relationship
+        required: true
+        type: string
+      - description: 0 to 1 confidence for imported or AI-suggested mappings
+        name: confidence
+        required: false
+        type: number
+      - description: suggested, accepted, rejected, imported
+        name: status
+        required: false
+        type: string
+      - name: rationale
+        required: false
+        type: string
+      - name: source_system
+        required: false
+        type: string
+      - name: source_id
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      - delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  ea13aba7-63cb-4120-8d39-4e6f1e2e6a31:
+    id: ea13aba7-63cb-4120-8d39-4e6f1e2e6a31
+    name: grc-evidence-links
+    description: Reusable evidence links to GRC entities
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+        description: Provider organization that owns this relationship.
+      - name: applied_organizations
+        type: array
+        description: Applicability inherited from the relationship source.
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs excluded from applicability.
+      - name: evidence_id
+        required: true
+        type: string
+      - description: applied_control, control, assessment, assessment_control, policy,
+          exception, risk, questionnaire_item, questionnaire_response
+        name: target_type
+        required: true
+        type: string
+      - name: target_id
+        required: true
+        type: string
+      - description: supports, proves, source_document, attachment, citation, generated_from
+        name: relationship
+        required: false
+        type: string
+      - name: citation
+        required: false
+        type: string
+      - name: source_system
+        required: false
+        type: string
+      - name: source_id
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      - delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  4b005b74-67d7-4e43-b52b-eaa99ff22762:
+    id: 4b005b74-67d7-4e43-b52b-eaa99ff22762
+    name: grc-exception-links
+    description: Reusable exception links to GRC entities
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+        description: Provider organization that owns this relationship.
+      - name: applied_organizations
+        type: array
+        description: Applicability inherited from the relationship source.
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs excluded from applicability.
+      - name: exception_id
+        required: true
+        type: string
+      - description: applied_control, control, assessment, assessment_control, risk
+        name: target_type
+        required: true
+        type: string
+      - name: target_id
+        required: true
+        type: string
+      - description: waives, accepts_risk_for, compensates_for, documents_gap
+        name: relationship
+        required: false
+        type: string
+      - name: source_system
+        required: false
+        type: string
+      - name: source_id
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      - delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  63176e1c-158b-46dd-b139-aac384943aaf:
+    id: 63176e1c-158b-46dd-b139-aac384943aaf
+    name: grc-import-mappings
+    description: Idempotent source-to-target mappings for GRC imports
+    schema:
+      columns:
+      - description: Bifrost organization when the mapping is customer-scoped
+        name: organization_id
+        required: false
+        type: string
+      - name: source_system
+        required: true
+        type: string
+      - name: source_resource
+        required: true
+        type: string
+      - name: source_id
+        required: true
+        type: string
+      - name: source_label
+        required: false
+        type: string
+      - name: target_table
+        required: false
+        type: string
+      - name: target_id
+        required: false
+        type: string
+      - description: mapped, ignored, unresolved, duplicate, failed
+        name: mapping_status
+        required: true
+        type: string
+      - name: rationale
+        required: false
+        type: string
+      - name: last_seen_at
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer internal GRC
+        metadata.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Only Platform Org GRC Administrators manage internal migration
+        and delegated-access metadata.
+      name: grc_internal_admin
+      when:
+        and:
+        - user: is_provider_org
+        - args:
+          - GRC Administrator
+          call: has_role
+  9d45b758-d58c-4e63-93e9-2a25e433ebfd:
+    id: 9d45b758-d58c-4e63-93e9-2a25e433ebfd
+    name: grc-policy-links
+    description: Reusable policy links to GRC entities
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+        description: Provider organization that owns this relationship.
+      - name: applied_organizations
+        type: array
+        description: Applicability inherited from the relationship source.
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs excluded from applicability.
+      - name: policy_id
+        required: true
+        type: string
+      - description: applied_control, control, assessment_control, questionnaire_response
+        name: target_type
+        required: true
+        type: string
+      - name: target_id
+        required: true
+        type: string
+      - description: governs, implements, supports, cited_by
+        name: relationship
+        required: false
+        type: string
+      - name: source_system
+        required: false
+        type: string
+      - name: source_id
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      - delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  3b936937-cd78-4607-bcbc-a22403439913:
+    id: 3b936937-cd78-4607-bcbc-a22403439913
+    name: grc-questionnaire-control-links
+    description: Links from questionnaire items and answers to GRC controls and evidence
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+      - name: questionnaire_id
+        required: true
+        type: string
+      - name: item_id
+        required: false
+        type: string
+      - name: response_id
+        required: false
+        type: string
+      - description: applied_control, control, assessment_control, evidence, policy
+        name: target_type
+        required: true
+        type: string
+      - name: target_id
+        required: true
+        type: string
+      - description: answers, supports, maps_to, creates, updates
+        name: relationship
+        required: false
+        type: string
+      - name: confidence
+        required: false
+        type: number
+      - name: rationale
+        required: false
+        type: string
+      - description: suggested, accepted, rejected, applied
+        name: status
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      - delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  80530a7b-1d95-462d-a883-086c8d7cd745:
+    id: 80530a7b-1d95-462d-a883-086c8d7cd745
+    name: grc-questionnaire-items
+    description: Extracted questionnaire questions for Bifrost GRC
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+      - name: questionnaire_id
+        required: true
+        type: string
+      - name: section_id
+        required: false
+        type: string
+      - name: question_text
+        required: true
+        type: string
+      - name: normalized_topic
+        required: false
+        type: string
+      - description: yes_no, text, multi_select, numeric, date, file, unknown
+        name: answer_type
+        required: false
+        type: string
+      - name: sort_order
+        required: false
+        type: integer
+      - name: source_page
+        required: false
+        type: integer
+      - name: source_anchor
+        required: false
+        type: string
+      - name: source_excerpt
+        required: false
+        type: string
+      - name: extraction_confidence
+        required: false
+        type: number
+      - description: extracted, answering, answered, needs_review, accepted, rejected
+        name: status
+        required: false
+        type: string
+      - description: msp = answerable from GRC data; customer = business fact the
+          customer must supply (employee count, revenue, etc.)
+        name: audience
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      name: grc_tenant_delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  cd76dca7-6127-4bbd-aa40-3ef32c444189:
+    id: cd76dca7-6127-4bbd-aa40-3ef32c444189
+    name: grc-questionnaire-proposals
+    description: Approved/denied questionnaire proposals for creates, scope updates,
+      links, and mappings.
+    schema:
+      columns:
+      - description: Customer org this questionnaire proposal belongs to.
+        name: organization_id
+        required: true
+        type: string
+      - description: Source questionnaire.
+        name: questionnaire_id
+        required: true
+        type: string
+      - description: Source questionnaire item.
+        name: item_id
+        type: string
+      - description: Source questionnaire response.
+        name: response_id
+        type: string
+      - description: Proposal action.
+        enum:
+        - use_existing
+        - create
+        - update_scope
+        name: action
+        required: true
+        type: string
+      - description: Object or relationship being proposed.
+        enum:
+        - applied_control
+        - evidence
+        - policy
+        - risk
+        - mapping
+        - link
+        name: target_type
+        required: true
+        type: string
+      - description: Existing target id for use_existing/update_scope.
+        name: target_id
+        type: string
+      - description: JSON payload for creates or edits.
+        name: draft_payload_json
+        type: string
+      - description: JSON array of link/mapping writes to apply after approval.
+        name: relationship_payloads_json
+        type: string
+      - default: proposed
+        description: Proposal lifecycle state.
+        enum:
+        - proposed
+        - accepted
+        - rejected
+        - applied
+        name: status
+        type: string
+      - description: 0-1 confidence.
+        name: confidence
+        type: number
+      - description: Whether the proposal needs closer human review.
+        name: needs_review
+        type: boolean
+      - description: Why the proposal exists.
+        name: rationale
+        type: string
+      - description: Stable hash for idempotent proposal dedupe.
+        name: content_hash
+        required: true
+        type: string
+      - description: JSON metadata/provenance.
+        name: metadata_json
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      name: grc_tenant_delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  6f86f023-5753-49c3-8dfc-2466439738fb:
+    id: 6f86f023-5753-49c3-8dfc-2466439738fb
+    name: grc-questionnaire-recommendations
+    description: Async checkbox-style recommendations surfaced from questionnaire
+      answers.
+    schema:
+      columns:
+      - description: Customer org this recommendation belongs to.
+        name: organization_id
+        required: true
+        type: string
+      - description: Source questionnaire.
+        name: questionnaire_id
+        required: true
+        type: string
+      - description: Source questionnaire item (null if cross-cutting).
+        name: item_id
+        type: string
+      - description: Source draft response (null if generated outside the draft loop).
+        name: response_id
+        type: string
+      - description: Kind of gap surfaced.
+        enum:
+        - already_covered
+        - evidence_gap
+        - control_gap
+        - policy_gap
+        - low_confidence
+        - needs_review
+        name: gap_kind
+        required: true
+        type: string
+      - description: Who needs to do the next action.
+        enum:
+        - msp_action
+        - customer_action
+        - vendor_purchase
+        - customer_decides
+        - already_covered
+        name: who_acts
+        required: true
+        type: string
+      - default: medium
+        description: Operator priority.
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        name: severity
+        type: string
+      - description: Short headline (recommendation card).
+        name: title
+        required: true
+        type: string
+      - description: Recommendation detail.
+        name: body
+        required: true
+        type: string
+      - description: Stable hash of (item_id + gap_kind + title) — used to dedupe
+          across re-runs.
+        name: content_hash
+        required: true
+        type: string
+      - default: open
+        description: Lifecycle state.
+        enum:
+        - open
+        - done
+        - dismissed
+        name: status
+        type: string
+      - name: completed_at
+        type: datetime
+      - name: completed_by
+        type: string
+      - description: What the operator did to resolve it.
+        name: completion_notes
+        type: string
+      - description: JSON for cited target_ids, references, etc.
+        name: metadata_json
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+  806f3c5f-f44d-474d-b1f6-47a93fe915d3:
+    id: 806f3c5f-f44d-474d-b1f6-47a93fe915d3
+    name: grc-questionnaire-responses
+    description: Questionnaire draft and reviewed answers for Bifrost GRC
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+      - name: questionnaire_id
+        required: true
+        type: string
+      - name: item_id
+        required: true
+        type: string
+      - name: draft_answer
+        required: false
+        type: string
+      - name: final_answer
+        required: false
+        type: string
+      - description: draft, needs_review, accepted, rejected, applied
+        name: status
+        required: true
+        type: string
+      - name: confidence
+        required: false
+        type: number
+      - description: agent, user, import
+        name: generated_by
+        required: false
+        type: string
+      - name: citations_json
+        required: false
+        type: string
+      - name: applied_control_id
+        required: false
+        type: string
+      - name: assessment_control_id
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      name: grc_tenant_delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  1255eaa2-68bd-484e-b265-fed11d5a0470:
+    id: 1255eaa2-68bd-484e-b265-fed11d5a0470
+    name: grc-questionnaire-runs
+    description: Questionnaire extraction and answering runs for Bifrost GRC
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+      - name: questionnaire_id
+        required: true
+        type: string
+      - description: extraction, answering, apply_to_grc, import
+        name: run_type
+        required: true
+        type: string
+      - description: queued, running, completed, failed
+        name: status
+        required: true
+        type: string
+      - name: model
+        required: false
+        type: string
+      - name: prompt_version
+        required: false
+        type: string
+      - name: started_at
+        required: false
+        type: string
+      - name: completed_at
+        required: false
+        type: string
+      - name: error
+        required: false
+        type: string
+      - name: stats_json
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      name: grc_tenant_delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  acd5c96f-97ee-4332-970e-35c92474bc07:
+    id: acd5c96f-97ee-4332-970e-35c92474bc07
+    name: grc-questionnaire-sections
+    description: Questionnaire sections for Bifrost GRC
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+      - name: questionnaire_id
+        required: true
+        type: string
+      - name: parent_section_id
+        required: false
+        type: string
+      - name: title
+        required: true
+        type: string
+      - name: sort_order
+        required: false
+        type: integer
+      - name: source_page
+        required: false
+        type: integer
+      - name: source_anchor
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      name: grc_tenant_delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  1e02970e-a66a-4442-9894-26c250a67da2:
+    id: 1e02970e-a66a-4442-9894-26c250a67da2
+    name: grc-questionnaires
+    description: Questionnaire records for Bifrost GRC
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+      - name: name
+        required: true
+        type: string
+      - name: source_document_id
+        required: false
+        type: string
+      - name: assessment_id
+        required: false
+        type: string
+      - name: carrier
+        required: false
+        type: string
+      - description: draft, extracting, answering, needs_review, completed, failed
+        name: status
+        required: true
+        type: string
+      - name: extraction_model
+        required: false
+        type: string
+      - name: extracted_at
+        required: false
+        type: string
+      - name: completed_at
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      name: grc_tenant_delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  c9832507-e03f-4a67-90c8-86bbe33b9a76:
+    id: c9832507-e03f-4a67-90c8-86bbe33b9a76
+    name: grc-risk-links
+    description: Reusable risk links to GRC entities
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+        description: Provider organization that owns this relationship.
+      - name: applied_organizations
+        type: array
+        description: Applicability inherited from the relationship source.
+      - name: excluded_organizations
+        type: array
+        description: Customer org IDs excluded from applicability.
+      - name: risk_id
+        required: true
+        type: string
+      - description: applied_control, control, assessment, assessment_control, exception,
+          policy, evidence
+        name: target_type
+        required: true
+        type: string
+      - name: target_id
+        required: true
+        type: string
+      - description: mitigated_by, accepted_by, related_to, evidenced_by
+        name: relationship
+        required: false
+        type: string
+      - name: source_system
+        required: false
+        type: string
+      - name: source_id
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      - delete
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  928e3e01-0804-449a-8ce4-f7121c590f85:
+    id: 928e3e01-0804-449a-8ce4-f7121c590f85
+    name: grc-source-documents
+    description: Source documents for GRC migration, questionnaires, policies, and
+      evidence
+    schema:
+      columns:
+      - name: organization_id
+        required: true
+        type: string
+      - name: name
+        required: true
+        type: string
+      - description: ciso_export, questionnaire, evidence_attachment, policy_document,
+          other
+        name: document_type
+        required: false
+        type: string
+      - name: file_name
+        required: false
+        type: string
+      - name: file_path
+        required: false
+        type: string
+      - name: url
+        required: false
+        type: string
+      - name: mime_type
+        required: false
+        type: string
+      - name: checksum
+        required: false
+        type: string
+      - name: page_count
+        required: false
+        type: integer
+      - name: extracted_text_path
+        required: false
+        type: string
+      - name: source_system
+        required: false
+        type: string
+      - name: source_id
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+      - description: Path to a viewer-ready PDF rendering. For source docs that are
+          PDFs, equals file_path. For DOCX sources, the path to the converted PDF.
+        name: pdf_file_path
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer all GRC data.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      description: GRC roles read all clients from Platform Org; other organizations
+        read their own and shared global rows.
+      name: grc_tenant_read
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Auditor
+            call: has_role
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id
+    - actions:
+      - create
+      description: GRC contributors and administrators create and delete all clients
+        from Platform Org; other organizations create and delete only their own rows.
+      name: grc_tenant_create_delete
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+    - actions:
+      - delete
+      description: Provider-org GRC contributors and administrators may hard-delete routine records; customers must archive them.
+      name: grc_tenant_delete
+      when:
+        and:
+        - or:
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - user: is_provider_org
+    - actions:
+      - update
+      description: Contributors and administrators update rows in their own organization; provider roles may update any customer row.
+      name: grc_tenant_update
+      when:
+        and:
+        - or:
+          - args:
+            - GRC Contributor
+            call: has_role
+          - args:
+            - GRC Administrator
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  22d9928c-24b5-41e2-adc5-b47b1e1b5bd4:
+    id: 22d9928c-24b5-41e2-adc5-b47b1e1b5bd4
+    name: grc-user-org-access
+    description: GRC cross-organization access grants used by custom claims.
+    schema:
+      columns:
+      - description: Bifrost user id receiving GRC access
+        name: user_id
+        required: true
+        type: string
+      - description: Bifrost organization id whose GRC rows this user may access
+        name: target_organization_id
+        required: true
+        type: string
+      - description: viewer, auditor, or manager
+        name: access_level
+        required: true
+        type: string
+      - description: active or inactive
+        name: status
+        required: true
+        type: string
+      - description: Optional ISO timestamp after which access should be treated as
+          expired
+        name: expires_at
+        required: false
+        type: string
+      - name: granted_by
+        required: false
+        type: string
+      - name: granted_reason
+        required: false
+        type: string
+      - name: metadata_json
+        required: false
+        type: string
+    policies:
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Platform administrators may recover and administer internal GRC
+        metadata.
+      name: platform_admin_bypass
+      when:
+        user: is_platform_admin
+    - actions:
+      - read
+      - create
+      - update
+      - delete
+      description: Only Platform Org GRC Administrators manage internal migration
+        and delegated-access metadata.
+      name: grc_internal_admin
+      when:
+        and:
+        - user: is_provider_org
+        - args:
+          - GRC Administrator
+          call: has_role
+  0ee83b1d-afa1-4a47-8e76-6c561297f82e:
+    id: 0ee83b1d-afa1-4a47-8e76-6c561297f82e
+    name: grc-findings
+    description: Durable manual or agent observations that do not already have an authoritative assessment or questionnaire record.
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+        required: true
+        description: Customer organization affected by the observation.
+      - name: title
+        type: string
+        required: true
+      - name: body
+        type: string
+        description: Concise description of the observed condition and why it matters.
+      - name: severity
+        type: string
+        enum: [low, medium, high, critical]
+        default: medium
+      - name: status
+        type: string
+        enum: [open, resolved, accepted, dismissed]
+        default: open
+      - name: owner
+        type: string
+      - name: target_date
+        type: date
+      - name: source_system
+        type: string
+        description: System or agent that observed the condition.
+      - name: source_id
+        type: string
+        description: Stable source identifier used to prevent duplicate observations.
+      - name: source_url
+        type: string
+      - name: related_record_type
+        type: string
+        description: Optional authoritative GRC record type associated with the observation.
+      - name: related_record_id
+        type: string
+      - name: resolution_notes
+        type: string
+      - name: resolved_at
+        type: datetime
+      - name: resolved_by
+        type: string
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer all GRC data.
+      actions: [read, create, update, delete]
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles read customer observations available to their organization context.
+      actions: [read]
+      when:
+        and:
+        - or:
+          - args: [GRC Auditor]
+            call: has_role
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+  0eff50c9-0ab0-42dd-a35c-192a1c8d0ae9:
+    id: 0eff50c9-0ab0-42dd-a35c-192a1c8d0ae9
+    name: grc-change-history
+    description: Append-only history of material GRC record changes made through governed operations.
+    schema:
+      columns:
+      - name: organization_id
+        type: string
+        description: Customer organization affected by the change; null for global records.
+      - name: entity_type
+        type: string
+        required: true
+      - name: entity_id
+        type: string
+        required: true
+      - name: event_type
+        type: string
+        required: true
+      - name: actor_id
+        type: string
+      - name: actor_label
+        type: string
+      - name: event_at
+        type: datetime
+        required: true
+      - name: summary
+        type: string
+      - name: changed_fields_json
+        type: string
+      - name: before_json
+        type: string
+      - name: after_json
+        type: string
+      - name: reason
+        type: string
+      - name: source_system
+        type: string
+    policies:
+    - name: platform_admin_bypass
+      description: Platform administrators may recover and administer change history.
+      actions: [read, create, update, delete]
+      when:
+        user: is_platform_admin
+    - name: grc_tenant_read
+      description: GRC roles may read history for their visible organization context.
+      actions: [read]
+      when:
+        and:
+        - or:
+          - args: [GRC Auditor]
+            call: has_role
+          - args: [GRC Contributor]
+            call: has_role
+          - args: [GRC Administrator]
+            call: has_role
+        - or:
+          - user: is_provider_org
+          - eq:
+            - row: organization_id
+            - user: organization_id
+          - is_null:
+              row: organization_id

@@ -1,0 +1,41 @@
+connections:
+  OpenRouter:
+    integration_name: OpenRouter
+    template:
+      config_schema:
+        - key: api_key
+          type: secret
+          required: true
+          description: OpenRouter API key for optional GRC AI workflows.
+          position: 0
+        - key: default_model
+          type: string
+          required: true
+          description: Default OpenRouter model for optional GRC AI workflows.
+          position: 1
+    position: 0
+  CISO Assistant:
+    integration_name: CISO Assistant
+    template:
+      config_schema:
+        - key: base_url
+          type: string
+          required: true
+          description: CISO Assistant instance root or API URL for optional imports.
+          position: 0
+        - key: pat
+          type: secret
+          required: false
+          description: Preferred CISO Assistant personal access token.
+          position: 1
+        - key: username
+          type: string
+          required: false
+          description: CISO Assistant username when a personal access token is unavailable.
+          position: 2
+        - key: password
+          type: secret
+          required: false
+          description: CISO Assistant password when a personal access token is unavailable.
+          position: 3
+    position: 1

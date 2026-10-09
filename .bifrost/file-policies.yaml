@@ -1,0 +1,99 @@
+file_policies:
+  5b1e796d-389f-48f0-991e-65c32c19c80f:
+    id: 5b1e796d-389f-48f0-991e-65c32c19c80f
+    location: grc-evidence
+    path: ''
+    policies:
+    - &id001
+      name: platform_admin_bypass
+      description: Platform administrators may recover and administer GRC files.
+      actions:
+      - read
+      - write
+      - delete
+      - list
+      when:
+        user: is_platform_admin
+    - &id002
+      name: grc_file_read
+      description: Provider-org GRC roles may read and list managed GRC files directly.
+      actions:
+      - read
+      - list
+      when:
+        and:
+        - user: is_provider_org
+        - or:
+          - call: has_role
+            args:
+            - GRC Auditor
+          - call: has_role
+            args:
+            - GRC Contributor
+          - call: has_role
+            args:
+            - GRC Administrator
+    - &id003
+      name: grc_file_write
+      description: Provider-org GRC contributors and administrators may write managed GRC files directly.
+      actions:
+      - write
+      when:
+        and:
+        - user: is_provider_org
+        - or:
+          - call: has_role
+            args:
+            - GRC Contributor
+          - call: has_role
+            args:
+            - GRC Administrator
+    - &id004
+      name: grc_file_delete
+      description: Provider-org GRC contributors and administrators may delete managed GRC files directly.
+      actions:
+      - delete
+      when:
+        and:
+        - user: is_provider_org
+        - or:
+          - args: [GRC Administrator]
+            call: has_role
+          - args: [GRC Contributor]
+            call: has_role
+  a80be52b-05fe-4b8d-ae09-d6b539e0d911:
+    id: a80be52b-05fe-4b8d-ae09-d6b539e0d911
+    location: grc-questionnaire-text
+    path: ''
+    policies:
+    - *id001
+    - *id002
+    - *id003
+    - *id004
+  686bb83d-b8a0-4674-8af0-eee185bf168e:
+    id: 686bb83d-b8a0-4674-8af0-eee185bf168e
+    location: grc-source-documents
+    path: ''
+    policies:
+    - *id001
+    - *id002
+    - *id003
+    - *id004
+  9c5c3a6b-a9c4-4176-b9dc-cdddeaf7069a:
+    id: 9c5c3a6b-a9c4-4176-b9dc-cdddeaf7069a
+    location: grc-source-pdfs
+    path: ''
+    policies:
+    - *id001
+    - *id002
+    - *id003
+    - *id004
+  c2afcb6e-24e7-4cb8-91da-cff34edabf24:
+    id: c2afcb6e-24e7-4cb8-91da-cff34edabf24
+    location: grc-policy-files
+    path: ''
+    policies:
+    - *id001
+    - *id002
+    - *id003
+    - *id004

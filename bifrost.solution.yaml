@@ -1,0 +1,7 @@
+slug: bifrost-grc
+name: Bifrost GRC
+version: 0.14.4
+logo: apps/bifrost-grc-v2/public/grc-logo.svg
+global_repo_access: false
+allow_outbound_access: false
+allow_inbound_access: true
