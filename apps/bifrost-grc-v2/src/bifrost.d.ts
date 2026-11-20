@@ -29,6 +29,13 @@ declare module "bifrost" {
 
   export const BifrostProvider: ComponentType<BifrostProviderProps>;
   export function useBifrostContext(): BifrostContextValue;
+  export function useUser(): {
+    id: string;
+    email: string;
+    organizationId: string;
+    roles: string[];
+    isPlatformAdmin: boolean;
+  };
 
   export interface BrandPaletteTheme {
     primary: string;
