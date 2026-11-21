@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { useBifrostContext } from "bifrost";
+import { useUser } from "bifrost";
+import { useOrgsList } from "./directory";
 
 export interface CurrentUser {
   id: string | null;
@@ -8,6 +9,7 @@ export interface CurrentUser {
   roleNames: string[];
   isProviderOrg: boolean;
   isPlatformAdmin: boolean;
+  hasOrganizationDirectory: boolean;
 }
 
 const GRC_EDITOR_ROLES = new Set(["GRC Contributor", "GRC Administrator"]);
@@ -21,38 +23,21 @@ export function canEditGrc(user: Pick<CurrentUser, "isPlatformAdmin" | "roleName
   return user.isPlatformAdmin || user.roleNames.some((role) => GRC_EDITOR_ROLES.has(role));
 }
 
-function decodePayload(token: string): Record<string, unknown> {
-  try {
-    const encoded = token.split(".")[1];
-    if (!encoded) return {};
-    const normalized = encoded.replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(window.atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")));
-  } catch {
-    return {};
-  }
-}
-
-/**
- * Identity helper for display/default values only. Authorization remains in
- * app/workflow/table/file policies; decoded JWT claims are never trusted for it.
- */
 export function useCurrentUser(): CurrentUser {
-  const { token, orgScope } = useBifrostContext();
-  return useMemo(() => {
-    const payload = decodePayload(token);
-    const roles = payload.role_names ?? payload.roles;
-    return {
-      id: String(payload.user_id ?? payload.sub ?? "") || null,
-      email: String(payload.email ?? "") || null,
-      organizationId: String(payload.organization_id ?? payload.org_id ?? orgScope ?? "") || null,
-      roleNames: Array.isArray(roles) ? roles.map(String) : [],
-      isProviderOrg: Boolean(payload.is_provider_org),
-      isPlatformAdmin: Boolean(payload.is_platform_admin || payload.is_superuser),
-    };
-  }, [orgScope, token]);
+  const { id, email, organizationId, roles, isPlatformAdmin } = useUser();
+  const { orgs, isLoading, isError } = useOrgsList(true);
+  return {
+    id: id || null,
+    email: email || null,
+    organizationId: organizationId || null,
+    roleNames: roles,
+    isProviderOrg: orgs.some((org) => org.id === organizationId && org.is_provider === true),
+    isPlatformAdmin,
+    hasOrganizationDirectory: !isLoading && !isError,
+  };
 }
 
 export function useGrcPermissions() {
-  const user = useCurrentUser();
-  return useMemo(() => ({ canEdit: canEditGrc(user) }), [user]);
+  const { roles, isPlatformAdmin } = useUser();
+  return useMemo(() => ({ canEdit: canEditGrc({ roleNames: roles, isPlatformAdmin }) }), [roles, isPlatformAdmin]);
 }

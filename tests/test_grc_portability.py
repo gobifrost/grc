@@ -65,7 +65,9 @@ def test_public_package_has_generic_setup_material_and_no_private_delivery_artif
 def test_solution_and_apps_do_not_pin_a_provider_sdk_or_url():
     solution = yaml.safe_load((ROOT / "bifrost.solution.yaml").read_text())
     assert solution["version"] == "0.14.4"
+    assert "global_repo_access" not in solution
     assert solution["allow_outbound_access"] is False
+    assert solution["allow_inbound_access"] is True
 
     readme = (ROOT / "README.md").read_text()
     assert "bifrost solution install-repo https://github.com/gobifrost/grc" in readme

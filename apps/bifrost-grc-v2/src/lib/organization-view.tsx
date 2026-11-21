@@ -34,10 +34,10 @@ export function OrganizationViewProvider({ children }: { children: ReactNode }) 
       if (storedOrganizationId === "__global__") setStoredOrganizationId(null);
       return;
     }
-    if (user.organizationId && storedOrganizationId !== user.organizationId) {
+    if (user.hasOrganizationDirectory && user.organizationId && storedOrganizationId !== user.organizationId) {
       setStoredOrganizationId(user.organizationId);
     }
-  }, [canSwitchOrganizations, setStoredOrganizationId, storedOrganizationId, user.organizationId]);
+  }, [canSwitchOrganizations, setStoredOrganizationId, storedOrganizationId, user.hasOrganizationDirectory, user.organizationId]);
 
   const value = useMemo<OrganizationViewContextValue>(() => ({
     organizationId,

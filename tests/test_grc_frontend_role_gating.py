@@ -44,3 +44,12 @@ def test_primary_grc_mutation_surfaces_use_the_auditor_gate():
         source = (APP / relative_path).read_text()
         assert "useGrcPermissions" in source, relative_path
         assert "canEdit" in source, relative_path
+
+
+def test_frontend_role_gate_uses_sdk_user_instead_of_jwt_claims():
+    source = (APP / "lib" / "current-user.ts").read_text()
+
+    assert 'import { useUser } from "bifrost"' in source
+    assert 'const { roles, isPlatformAdmin } = useUser()' in source
+    assert 'canEditGrc({ roleNames: roles, isPlatformAdmin })' in source
+    assert "decodePayload" not in source
